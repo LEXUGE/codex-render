@@ -11,7 +11,8 @@ Each Codex session writes to:
 ```
 
 The page uses MathJax from jsDelivr, so math typesetting requires network access
-when the file is opened. Refresh the browser manually after a new response.
+when the file is opened. Refresh the browser manually after a new response. Use
+`j` and `k` to switch to the next and previous rendered turns.
 
 ## Install
 

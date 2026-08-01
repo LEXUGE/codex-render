@@ -17,6 +17,7 @@ from pygments.formatters import HtmlFormatter
 
 
 MESSAGE_MARKER = "<!-- CODEX_RENDER_MESSAGES -->"
+TOC_MARKER = "<!-- CODEX_RENDER_TOC -->"
 ALLOWED_TAGS = {
     "a",
     "abbr",
@@ -110,6 +111,40 @@ def new_page(session_id: str) -> str:
         title=html.escape(f"Codex thread {session_id}"),
         session_id=html.escape(session_id),
         pygments_css=HtmlFormatter(style="github-dark").get_style_defs(".highlight"),
+        toc=_toc_shell(),
+    )
+
+
+def _toc_shell(entries: str = "") -> str:
+    return (
+        '<aside class="turn-toc" aria-label="Turn navigation">\n'
+        '  <div class="turn-toc-title">Turns</div>\n'
+        '  <div class="turn-toc-shortcuts">k previous · j next</div>\n'
+        "  <nav>\n"
+        "    <ol>\n"
+        f"{entries}{TOC_MARKER}\n"
+        "    </ol>\n"
+        "  </nav>\n"
+        "</aside>"
+    )
+
+
+def _turn_preview(rendered_message: str, word_limit: int = 8) -> str:
+    plain_text = html.unescape(nh3.clean(rendered_message, tags=set(), attributes={}))
+    words = plain_text.split()
+    preview = " ".join(words[:word_limit])
+    if len(words) > word_limit:
+        preview += "…"
+    return preview
+
+
+def _toc_entry(turn_number: int, turn_id: str, preview: str) -> str:
+    anchor = html.escape(turn_id, quote=True)
+    return (
+        f'      <li><a href="#{anchor}">'
+        f'<span class="turn-toc-number">Turn {turn_number}</span>'
+        f'<span class="turn-toc-preview">{html.escape(preview)}</span>'
+        "</a></li>\n"
     )
 
 
@@ -141,22 +176,36 @@ def update_page(payload: dict[str, object], output_dir: str | None = None) -> Pa
         if target.exists()
         else new_page(values["session_id"])
     )
+    if page.count(MESSAGE_MARKER) != 1:
+        raise ValueError(f"existing page has an invalid message marker: {target}")
+    if page.count(TOC_MARKER) != 1:
+        raise ValueError(f"existing page has an invalid table-of-contents marker: {target}")
     turn_attribute = f'data-turn-id="{html.escape(values["turn_id"], quote=True)}"'
     turn_marker = f"<!-- CODEX_RENDER_TURN:{quote(values['turn_id'], safe='')} -->"
     if turn_marker in page:
         return target
-    if page.count(MESSAGE_MARKER) != 1:
-        raise ValueError(f"existing page has an invalid message marker: {target}")
 
+    turn_number = page.count('class="message"') + 1
+    turn_anchor = html.escape(values["turn_id"], quote=True)
+    rendered_message = render_markdown(message)
     article = (
         f"{turn_marker}\n"
-        f'<article class="message" {turn_attribute}>\n'
+        f'<article id="{turn_anchor}" class="message" {turn_attribute}>\n'
         '<div class="message-label">Assistant '
         f'<span>{html.escape(values["turn_id"])}</span></div>\n'
-        f'<div class="markdown-body">\n{render_markdown(message)}\n</div>\n'
+        f'<div class="markdown-body">\n{rendered_message}\n</div>\n'
         "</article>\n"
     )
     page = page.replace(MESSAGE_MARKER, article + MESSAGE_MARKER)
+    page = page.replace(
+        TOC_MARKER,
+        _toc_entry(
+            turn_number,
+            values["turn_id"],
+            _turn_preview(rendered_message),
+        )
+        + TOC_MARKER,
+    )
     _atomic_write(target, page)
     return target
 

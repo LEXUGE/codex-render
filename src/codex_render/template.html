@@ -118,6 +118,102 @@
     .arithmatex { overflow-x: auto; overflow-y: hidden; }
 
 ${pygments_css}
+
+    .turn-toc {
+      position: fixed;
+      top: 2rem;
+      left: max(1rem, calc(50% - 650px));
+      width: 180px;
+      max-height: calc(100vh - 4rem);
+      overflow-y: auto;
+      padding: 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 0.6rem;
+      background: var(--surface);
+      font-size: 0.875rem;
+    }
+
+    .turn-toc-title {
+      margin-bottom: 0.6rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 650;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .turn-toc-shortcuts {
+      margin: -0.35rem 0 0.7rem;
+      color: var(--muted);
+      font-size: 0.7rem;
+    }
+
+    .turn-toc ol {
+      display: grid;
+      gap: 0.2rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .turn-toc a {
+      display: block;
+      padding: 0.3rem 0.45rem;
+      border-radius: 0.35rem;
+      color: var(--foreground);
+      text-decoration: none;
+    }
+
+    .turn-toc a:hover,
+    .turn-toc a:focus-visible {
+      background: var(--border);
+      color: var(--link);
+      outline: none;
+    }
+
+    .turn-toc a[aria-current="true"] {
+      background: var(--border);
+      color: var(--link);
+    }
+
+    .turn-toc-number {
+      display: block;
+      font-weight: 600;
+    }
+
+    .turn-toc-preview {
+      display: -webkit-box;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.35;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .message { scroll-margin-top: 1.5rem; }
+    .message[hidden] { display: none; }
+
+    @media (max-width: 1280px) {
+      .turn-toc {
+        position: sticky;
+        z-index: 10;
+        top: 0;
+        left: 0;
+        width: 100%;
+        max-height: none;
+        padding: 0.6rem 1rem;
+        overflow-x: auto;
+        border-width: 0 0 1px;
+        border-radius: 0;
+      }
+
+      .turn-toc-title,
+      .turn-toc-shortcuts { display: none; }
+      .turn-toc ol { display: flex; gap: 0.25rem; }
+      .turn-toc li { flex: 0 0 auto; }
+      .message { scroll-margin-top: 4rem; }
+    }
   </style>
   <script>
     window.MathJax = {
@@ -137,9 +233,75 @@ ${pygments_css}
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4.0.0/tex-svg.js"></script>
 </head>
 <body>
+  ${toc}
   <main>
     <header class="thread-header">Codex thread ${session_id}</header>
     <!-- CODEX_RENDER_MESSAGES -->
   </main>
+  <script>
+    (() => {
+      const messages = [...document.querySelectorAll(".message[data-turn-id]")];
+      const links = [...document.querySelectorAll(".turn-toc a[href^='#']")];
+
+      function selectedTurnId() {
+        if (!location.hash) return null;
+        try {
+          return decodeURIComponent(location.hash.slice(1));
+        } catch {
+          return location.hash.slice(1);
+        }
+      }
+
+      function activateSelectedTurn() {
+        if (!messages.length) return;
+        const requestedId = selectedTurnId();
+        const selected = messages.find((message) => message.id === requestedId)
+          ?? messages[messages.length - 1];
+
+        for (const message of messages) {
+          message.hidden = message !== selected;
+        }
+        for (const link of links) {
+          const linkId = decodeURIComponent(link.hash.slice(1));
+          if (linkId === selected.id) {
+            link.setAttribute("aria-current", "true");
+          } else {
+            link.removeAttribute("aria-current");
+          }
+        }
+      }
+
+      function switchTurn(offset) {
+        const currentIndex = messages.findIndex((message) => !message.hidden);
+        const nextIndex = Math.max(0, Math.min(messages.length - 1, currentIndex + offset));
+        if (nextIndex === currentIndex) return;
+
+        history.pushState(null, "", `#$${encodeURIComponent(messages[nextIndex].id)}`);
+        activateSelectedTurn();
+        window.scrollTo({ top: 0, behavior: "auto" });
+      }
+
+      for (const link of links) {
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          history.pushState(null, "", link.hash);
+          activateSelectedTurn();
+          window.scrollTo({ top: 0, behavior: "auto" });
+        });
+      }
+
+      document.addEventListener("keydown", (event) => {
+        if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+        const key = event.key.toLowerCase();
+        if (key !== "j" && key !== "k") return;
+
+        event.preventDefault();
+        switchTurn(key === "j" ? 1 : -1);
+      });
+
+      window.addEventListener("popstate", activateSelectedTurn);
+      activateSelectedTurn();
+    })();
+  </script>
 </body>
 </html>

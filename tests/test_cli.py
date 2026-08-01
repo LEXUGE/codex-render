@@ -5,7 +5,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-from codex_render.cli import MESSAGE_MARKER, thread_filename
+from codex_render.cli import (
+    MESSAGE_MARKER,
+    TOC_MARKER,
+    _turn_preview,
+    render_markdown,
+    thread_filename,
+)
 
 
 def payload(cwd: Path, **overrides: object) -> dict[str, object]:
@@ -54,10 +60,24 @@ def test_creates_appends_and_deduplicates_turns(tmp_path: Path) -> None:
 
     assert second.returncode == duplicate.returncode == 0
     assert page.index("First response") < page.index("Second response")
-    assert page.count('<article class="message" data-turn-id="turn_2">') == 1
+    assert page.count(
+        '<article id="turn_2" class="message" data-turn-id="turn_2">'
+    ) == 1
     assert page.count("<!-- CODEX_RENDER_TURN:turn_2 -->") == 1
     assert "Do not append" not in page
     assert page.count(MESSAGE_MARKER) == 1
+    assert page.count(TOC_MARKER) == 1
+    assert '<a href="#turn_1">' in page
+    assert '<a href="#turn_2">' in page
+    assert '<span class="turn-toc-number">Turn 2</span>' in page
+    assert '<span class="turn-toc-preview">Second response</span>' in page
+    assert "message.hidden = message !== selected" in page
+    assert 'link.setAttribute("aria-current", "true")' in page
+    assert "messages[messages.length - 1]" in page
+    assert "k previous · j next" in page
+    assert 'key !== "j" && key !== "k"' in page
+    assert 'switchTurn(key === "j" ? 1 : -1)' in page
+    assert '`#${encodeURIComponent(messages[nextIndex].id)}`' in page
 
 
 def test_renders_markdown_math_and_removes_unsafe_html(tmp_path: Path) -> None:
@@ -103,6 +123,14 @@ print("hello")
     assert "mathjax@4.0.0/tex-svg.js" in page
     assert "<script>alert" not in page
     assert "javascript:alert" not in page
+
+
+def test_turn_preview_uses_plain_text_and_truncates() -> None:
+    rendered = render_markdown(
+        "# Alpha **beta** `gamma`\n\ndelta epsilon zeta eta theta iota"
+    )
+
+    assert _turn_preview(rendered) == "Alpha beta gamma delta epsilon zeta eta theta…"
 
 
 def test_null_message_is_a_successful_noop(tmp_path: Path) -> None:
