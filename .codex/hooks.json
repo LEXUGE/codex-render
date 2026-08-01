@@ -1,0 +1,17 @@
+{
+  "description": "Render each completed Codex response as HTML.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --frozen --project \"$(git rev-parse --show-toplevel)\" codex-render",
+            "timeout": 30,
+            "statusMessage": "Rendering assistant response"
+          }
+        ]
+      }
+    ]
+  }
+}

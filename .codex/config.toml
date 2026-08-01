@@ -1,0 +1,30 @@
+default_permissions = "workspace-only"
+
+[features.network_proxy]
+enabled = true
+
+[permissions.workspace-only]
+extends = ":workspace"
+
+[permissions.workspace-only.filesystem]
+# By default, deny read access to all files on disk.
+":root" = "deny"
+
+"/nix" = "read"
+"/home/ash/.nix-profile/bin" = "read"
+"/home/ash/.codex/skills" = "read"
+":minimal" = "read"
+
+[permissions.workspace-only.network]
+enabled = true
+mode = "limited"
+
+[permissions.workspace-only.network.domains]
+"api.openai.com" = "allow"
+"developers.openai.com" = "allow"
+
+"**.pypi.org" = "allow"
+"github.com" = "allow"
+"objects.githubusercontent.com" = "allow"
+"release-assets.githubusercontent.com" = "allow"
+"files.pythonhosted.org" = "allow"
