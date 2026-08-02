@@ -125,6 +125,19 @@ print("hello")
     assert "javascript:alert" not in page
 
 
+def test_converts_under_indented_model_display_math_to_inline() -> None:
+    rendered = render_markdown(
+        r"""- Uses only
+  \[
+  K(D)=|G_5^+|
+  \]
+  as the termination measure."""
+    )
+
+    assert r'<span class="arithmatex">\(K(D)=|G_5^+|\)</span>' in rendered
+    assert "\n  [\n" not in rendered
+
+
 def test_turn_preview_uses_plain_text_and_truncates() -> None:
     rendered = render_markdown(
         "# Alpha **beta** `gamma`\n\ndelta epsilon zeta eta theta iota"

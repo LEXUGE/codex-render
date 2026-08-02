@@ -4,6 +4,7 @@ import argparse
 import html
 import json
 import os
+import re
 import sys
 import tempfile
 from importlib.resources import files
@@ -70,8 +71,25 @@ ALLOWED_ATTRIBUTES = {
     "ul": {"class"},
 }
 
+# Models sometimes put display math on under-indented continuation lines in a
+# list item. Python-Markdown keeps those lines in the paragraph, so Arithmatex
+# never sees a math block. Treat that invalid block form as inline math instead.
+_MODEL_LIST_MATH = re.compile(
+    r"^(?P<item> {0,3}(?:[-+*]|\d+\.) +[^\n]*\n)"
+    r"(?P<indent> {1,3})\\\[\n(?P<math>.*?)\n(?P=indent)\\\]$",
+    re.MULTILINE | re.DOTALL,
+)
+
 
 def render_markdown(source: str) -> str:
+    source = _MODEL_LIST_MATH.sub(
+        lambda match: (
+            f"{match.group('item')}{match.group('indent')}\\("
+            f"{' '.join(line.strip() for line in match.group('math').splitlines())}"
+            r"\)"
+        ),
+        source,
+    )
     rendered = markdown.markdown(
         source,
         extensions=[

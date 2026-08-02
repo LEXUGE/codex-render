@@ -14,6 +14,13 @@ The page uses MathJax from jsDelivr, so math typesetting requires network access
 when the file is opened. Refresh the browser manually after a new response. Use
 `j` and `k` to switch to the next and previous rendered turns.
 
+Codex models occasionally emit display-math delimiters directly on
+under-indented list continuation lines, without the blank lines required for a
+Markdown block. Python-Markdown therefore treats the delimiters as ordinary
+escaped brackets before Arithmatex can process them. The renderer converts this
+specific malformed model-output pattern to inline math; valid display-math
+blocks are left unchanged.
+
 ## Install
 
 The recommended installation uses `uv`, which provides an isolated environment
